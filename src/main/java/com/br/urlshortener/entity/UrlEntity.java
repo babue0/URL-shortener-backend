@@ -32,4 +32,5 @@ public class UrlEntity {
   private LocalDateTime createdAt = LocalDateTime.now();
 
   private LocalDateTime expiresAt;
+
 }
