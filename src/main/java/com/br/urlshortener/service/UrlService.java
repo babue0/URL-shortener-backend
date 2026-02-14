@@ -21,7 +21,19 @@ public class UrlService {
     this.redisTemplate = redisTemplate;
   }
 
-  private String shortenUrl (String originalUrl) {
+  public String shortenUrl(String originalUrl) {
+
+    originalUrl = originalUrl.trim();
+
+    if (originalUrl.endsWith("=")) {
+      originalUrl = originalUrl.substring(0, originalUrl.length() - 1);
+    }
+
+    if (!originalUrl.startsWith("http://") && !originalUrl.startsWith("https://")) {
+      originalUrl = "https://" + originalUrl;
+    }
+
+
     UrlEntity urlEntity = new UrlEntity();
     urlEntity.setOriginalUrl(originalUrl);
     UrlEntity savedEntity = urlRepository.save(urlEntity);
@@ -31,25 +43,36 @@ public class UrlService {
     savedEntity.setShortCode(shortCode);
     urlRepository.save(savedEntity);
 
+
     redisTemplate.opsForValue().set(shortCode, originalUrl, Duration.ofHours(24));
 
     return shortCode;
   }
 
 
-  private String getOriginalUrl (String shortCode) {
+  public String getOriginalUrl(String shortCode) {
+
 
     String cachedUrl = redisTemplate.opsForValue().get(shortCode);
-    if (cachedUrl != null){
-      System.out.println("Cache Hit!(Redis)");
+    if (cachedUrl != null) {
+      System.out.println("🔥 Cache Hit! (Redis) -> " + cachedUrl);
       return cachedUrl;
     }
 
-    System.out.println("Cache miss(Searching now in database)");
-    UrlEntity urlEntity = urlRepository.findByShortCode(shortCode).orElseThrow(() -> new RuntimeException("Url not found"));
+    System.out.println("🐢 Cache miss (Banco) -> Buscando: " + shortCode);
+    UrlEntity urlEntity = urlRepository.findByShortCode(shortCode)
+            .orElseThrow(() -> new RuntimeException("Url not found"));
 
-    redisTemplate.opsForValue().set(shortCode, urlEntity.getOriginalUrl(), Duration.ofHours(24));
+    String finalUrl = urlEntity.getOriginalUrl();
 
-    return urlEntity.getOriginalUrl();
+
+    if (!finalUrl.startsWith("http")) {
+      finalUrl = "https://" + finalUrl;
+    }
+
+
+    redisTemplate.opsForValue().set(shortCode, finalUrl, Duration.ofHours(24));
+
+    return finalUrl;
   }
 }
